@@ -8,7 +8,7 @@ const getParams = type => state => state.connection.params[type];
 
 const getById = flow(
   mapValues(value => id => state => state.connection.entities[value][id]),
-  mapKeys(key => `get${capitalize(key)}ById`)
+  mapKeys(key => `get${capitalize(key)}ById`),
 )(wpTypesSingularToPlural);
 
 const getWpTypeById = (wpType, id) => state =>
@@ -23,11 +23,22 @@ const getResults = (key, wpType) => state =>
 
 const listResults = memoize(flow(flatten, uniq));
 
-const getListResults = name => state => {
+const getListResults = (name, params) => state => {
   const key = getListKey(name)(state);
   const wpType = getListWpType(name)(state);
-  const results = getResults(key, wpType)(state);
-  return listResults(results);
+  let results = listResults(getResults(key, wpType)(state));
+
+  if (!params) return results;
+
+  const { exclude, excludeTo, excludeFrom, limit } = params;
+
+  if (exclude) results = results.filter(item => item !== exclude);
+  else if (excludeTo) results = results.slice(results.indexOf(excludeTo) + 1);
+  else if (excludeFrom) results = results.slice(0, results.indexOf(excludeFrom));
+
+  if (limit) results = results.slice(0, limit);
+
+  return results;
 };
 
 const getListResultsByPage = (name, page) => state => {
@@ -80,7 +91,7 @@ const isListLoading = name => state => {
 
 const isThisReady = flow(
   mapValuesWithKey(value => id => state => !!state.connection.entities[value][id]),
-  mapKeys(key => `is${capitalize(key)}Ready`)
+  mapKeys(key => `is${capitalize(key)}Ready`),
 )(wpTypesSingularToPlural);
 
 const isWpTypeReady = (wpType, id) => state => !!state.connection.entities[wpType][id];
